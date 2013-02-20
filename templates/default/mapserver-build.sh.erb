@@ -1,0 +1,55 @@
+MAPSERVER=$(basename `pwd`)
+MS_VERSION_MAJOR=$(cat mapserver.h |grep "#define MS_VERSION_MAJOR"| awk '{ print $3 }')
+MS_VERSION_MINOR=$(cat mapserver.h |grep "#define MS_VERSION_MINOR"| awk '{ print $3 }')
+
+COMMON_CONFIG=$(cat<<EOF 
+--prefix=<%= @install_dir %>/$MAPSERVER \
+--with-gd
+--with-gdal
+--with-postgis
+--with-wfs
+--with-wfsclient
+--with-wmsclient
+--with-proj
+--with-wcs
+--with-ogr
+--with-geos
+--with-kml
+--with-cairo
+--with-sos
+--with-fastcgi
+EOF
+)
+
+if [ $MS_VERSION_MAJOR -ge 6 -a $MS_VERSION_MINOR -ge 2 ]; then
+   COMMON_CONFIG="$COMMON_CONFIG --with-cairo --with-libsvg-cairo"
+fi
+
+if [ $MS_VERSION_MAJOR -ge 6 -a $MS_VERSION_MINOR -gt 2 ]; then
+   COMMON_CONFIG="$COMMON_CONFIG --with-php --enable-python-mapscript"
+fi
+
+./configure $COMMON_CONFIG && make clean && make
+
+if [ $MS_VERSION_MAJOR -ge 6 -a $MS_VERSION_MINOR -ge 2 ]; then
+  make install-lib install-bin install-cgibin
+fi
+
+if [ $MS_VERSION_MAJOR -ge 6 -a $MS_VERSION_MINOR -gt 2 ]; then
+  sudo make php_mapscript_install python_mapscript_install
+fi
+
+
+if [ $MS_VERSION_MAJOR = "6" -a $MS_VERSION_MINOR = "0" ]; then
+
+ if [ ! -d <%= @install_dir %>/$MAPSERVER/bin ]; then
+    mkdir <%= @install_dir %>/$MAPSERVER/bin
+ fi
+
+ cp mapserv legend msencrypt scalebar shp2img shptree shptreetst shptreevis sortshp tile4ms <%= @install_dir %>/$MAPSERVER/bin
+ 
+fi
+
+touch chef
+
+exit 0

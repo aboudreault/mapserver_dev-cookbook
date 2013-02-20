@@ -1,0 +1,396 @@
+diff --git a/Makefile.in b/Makefile.in
+index 42924fd..8b28e0a 100644
+--- a/Makefile.in
++++ b/Makefile.in
+@@ -63,8 +63,6 @@ PROJ=      @PROJ_ENABLED@
+ GDFONT_OBJ=gd-1.2/gdfontt.o gd-1.2/gdfonts.o gd-1.2/gdfontmb.o gd-1.2/gdfontl.o gd-1.2/gdfontg.o
+ GD_INC=  @GD_INC@
+ GD_LIB=  @GD_LIB@
+-GD=      @GD_DEF@
+-GD_STATIC = @GD_STATIC@
+ 
+ #
+ # Optional Anti-Grain Geometry Support.
+@@ -261,9 +259,6 @@ SUP_LIBS =  $(FT_LIB) $(GD_LIB) $(AGG_LIB) $(OGL_LIB) $(FTGL_LIB) $(PROJ_LIBS) \
+ 	  $(THREAD_LIB) $(ICONV_LIB) $(FASTCGI_LIB) $(XSLT_LIB) $(EXSLT_LIB) \
+ 	  $(ZLIB_LIB) $(XML2_LIB) $(FRIBIDI_LIB) $(XTRALIBS)  $(CAIRO_LIB)
+ 
+-# STATIC_LIBS is full filename with path of libs that will be statically linked
+-STATIC_LIBS= $(GD_STATIC)
+-
+ EXE_LDFLAGS =	$(RUNPATHS) -L. -lmapserver $(SUP_LIBS) $(STATIC_LIBS)
+ 
+ RM= /bin/rm -f
+@@ -347,7 +342,7 @@ libmapserver.a: mapserver.h $(OBJS)
+ shared:	$(LIBMAP_SHARED)
+ $(LIBMAP_SHARED):	$(LIBMAP_STATIC)
+ 	$(LD_SHARED) $(LD_SONAME_LIBMAP) -o $(LIBMAP_SH_VER) \
+-		$(RUNPATHS) $(OBJS) $(SUP_LIBS) $(STATIC_LIBS) \
++		$(RUNPATHS) $(OBJS) $(SUP_LIBS) \
+ 	&& ln -f -s $(LIBMAP_SH_VER) $(LIBMAP_SHARED)
+ 
+ shp2pdf: $(LIBMAP_STATIC) shp2pdf.o mapserver.h
+@@ -404,7 +399,6 @@ mapscriptvars:	Makefile
+ 	echo $(IGNORE_MISSING_DATA) $(USE_POINT_Z_M) $(STRINGS) @ALL_ENABLED@ >> mapscriptvars
+ 	echo -I. $(PROJ_INC) $(GD_INC) $(TTF_INC) $(JPEG_INC) $(SDE_INC) $(OGR_INC) $(GDAL_INC) $(GEOS_INC) >> mapscriptvars
+ 	echo $(EXE_LDFLAGS) >> mapscriptvars
+-	echo $(STATIC_LIBS) >> mapscriptvars
+ 	grep '#define MS_VERSION ' mapserver.h >> mapscriptvars
+ 
+ mapserver-config: Makefile
+diff --git a/configure.in b/configure.in
+index ba42418..1f43e4a 100755
+--- a/configure.in
++++ b/configure.in
+@@ -619,245 +619,107 @@ unset ac_cv_lib_c_gdFontGetTiny
+ unset ac_cv_lib_gd_gdImageCreatePaletteFromTrueColor
+ 
+ AC_CHECKING(for GD 2.0.28 or higher)
+-AC_ARG_WITH(gd,
+-[  --with-gd[[=[static,]DIR]]
+-                          Specify which version of GD to use (DIR is GD's
+-                          install dir).],,)
+-
+-if test "$with_gd" = "no" ; then
+-  AC_MSG_ERROR(GD library cannot be disabled)
+-elif test -n "$with_gd" -a "$with_gd" != "yes" ; then
+-  dnl
+-  dnl --with-gd was specified explicitly... 
+-  dnl
+-  AC_PARSE_WITH_LIB_STATIC($with_gd, GD_DIR, GD_STATIC)
+-  AC_EXPAND_PATH($GD_DIR, GD_DIR)
+-  test -f $GD_DIR/include/gd.h && GD_INCLUDE="$GD_DIR/include"
+-  test -f $GD_DIR/include/gd/gd.h && GD_INCLUDE="$GD_DIR/include/gd"
+-  test -f $GD_DIR/gd.h && GD_INCLUDE="$GD_DIR"
+-
+-  test -f $GD_DIR/lib/libgd.a && GD_LIBDIR="$GD_DIR/lib"
+-  test -f $GD_DIR/lib64/libgd.a && GD_LIBDIR="$GD_DIR/lib64"
+-  test -f $GD_DIR/.libs/libgd.a && GD_LIBDIR="$GD_DIR/.libs"
+-  test -f $GD_DIR/_libs/libgd.a && GD_LIBDIR="$GD_DIR/_libs"
+-  test -f $GD_DIR/libgd.a && GD_LIBDIR="$GD_DIR"
+-
+-  test -f $GD_DIR/lib/libgd.so -o -f $GD_DIR/lib/libgd.sl -o -f $GD_DIR/lib/libgd.dylib && GD_LIBDIR="$GD_DIR/lib"
+-  test -f $GD_DIR/lib64/libgd.so -o -f $GD_DIR/lib/libgd.sl && GD_LIBDIR="$GD_DIR/lib64"
+-  test -f $GD_DIR/.libs/libgd.so -o -f $GD_DIR/.libs/libgd.sl -o -f $GD_DIR/.libs/libgd.dylib && GD_LIBDIR="$GD_DIR/.libs"
+-  test -f $GD_DIR/_libs/libgd.so -o -f $GD_DIR/_libs/libgd.sl -o -f $GD_DIR/_libs/libgd.dylib && GD_LIBDIR="$GD_DIR/_libs"
+-  test -f $GD_DIR/libgd.so -o -f $GD_DIR/libgd.sl -o -f $GD_DIR/libgd.dylib && GD_LIBDIR="$GD_DIR"
+-
+-  dnl make sure it is GD 2.0.28+ with antialias and gdFontCacheSetup() and gdImageCreatePaletteFromTrueColor support
+-  AC_CHECK_LIB(gd, gdImageCreatePaletteFromTrueColor,IS_GD2="true",,$GD_XTRA_LIBS -L$GD_LIBDIR)
+-
+-  if test "$IS_GD2" = "false" -a -n "$ICONV_LIB"; then
+-    dnl try again including libiconv this time
+-    unset ac_cv_lib_gd_gdImageCreatePaletteFromTrueColor
+-    AC_CHECKING(whether GD needs libiconv)
+-    AC_CHECK_LIB(gd, gdImageCreatePaletteFromTrueColor,IS_GD2="true",,$GD_XTRA_LIBS -L$GD_LIBDIR $ICONV_LIB)
+-    GD_NEED_ICONV_LIB="$ICONV_LIB"
+-  fi
+-
+-  if test -n "$GD_INCLUDE" -a -n "$GD_LIBDIR" -a "$IS_GD2" = "true"; then
+-      GD_INC=-I$GD_INCLUDE
+-      GD_LIB="-L$GD_LIBDIR -lgd"
+-      GD_XTRA_LIBS="$GD_XTRA_LIBS $GD_NEED_ICONV_LIB"
+-      AC_MSG_RESULT([        using libgd 2.0.28 (or higher) from $GD_LIB $GD_XTRA_LIBS])
+-      AC_ADD_RUNPATH("$GD_LIBDIR")
+-  else
+-      AC_MSG_ERROR([Could not find gd.h or libgd.a/libgd.so in $GD_DIR.  Make sure GD 2.0.28 or higher is compiled before calling configure. You may also get this error if you didn't specify the appropriate location for one of GD's dependencies (freetype, libpng, libjpeg or libiconv).])
+-  fi
+-else
+-  dnl  --with-gd specified without a DIR, look for gd in system dirs /usr or /usr/local
+-  FOUND_GD="false"
+-  for GD_DIR in /usr /usr/local
+-  do
+-    test -f $GD_DIR/include/gd.h && GD_INCLUDE="$GD_DIR/include"
+-    test -f $GD_DIR/lib/libgd.a && GD_LIBDIR="$GD_DIR/lib"
+-    test -f $GD_DIR/lib64/libgd.a && GD_LIBDIR="$GD_DIR/lib64"
+-    test -f $GD_DIR/lib/libgd.so -o -f $GD_DIR/lib/libgd.sl -o -f $GD_DIR/lib/libgd.dylib && GD_LIBDIR="$GD_DIR/lib"
+-    test -f $GD_DIR/lib64/libgd.so -o -f $GD_DIR/lib/libgd.sl && GD_LIBDIR="$GD_DIR/lib64"
+-
+-    dnl make sure it is GD 2.0.28 or higher
+-    AC_CHECK_LIB(gd, gdImageCreatePaletteFromTrueColor, IS_GD2="true",,$GD_XTRA_LIBS)
+- 
+-    if test "$IS_GD2" = "false" -a -n "$ICONV_LIB"; then
+-      dnl try again including libiconv this time
+-      AC_CHECKING(whether GD needs libiconv)
+-      unset ac_cv_lib_gd_gdImageCreatePaletteFromTrueColor
+-      AC_CHECK_LIB(gd, gdImageCreatePaletteFromTrueColor,IS_GD2="true",,$GD_XTRA_LIBS $ICONV_LIB)
+-      GD_NEED_ICONV_LIB="$ICONV_LIB"
+-    fi
+-
+-    if test -n "$GD_INCLUDE" -a -n "$GD_LIBDIR" -a "$IS_GD2" = "true"; then
+-      GD_INC=-I$GD_INCLUDE
+-      GD_LIB="-L$GD_LIBDIR -lgd"
+-      GD_XTRA_LIBS="$GD_XTRA_LIBS $GD_NEED_ICONV_LIB"
+-      AC_MSG_RESULT([        using libgd 2.0.28 (or higher) from system libs ($GD_LIB $GD_XTRA_LIBS).])
+-      AC_ADD_RUNPATH("$GD_LIBDIR")
+-      FOUND_GD="true"
+-      break;
+-    fi
+-  done
+-
+-  if test "$FOUND_GD" = "false" ; then
+-    AC_MSG_ERROR([Could not find gd.h or libgd.a/libgd.so in $GD_DIR.  Make sure GD 2.0.28 or higher is compiled before calling configure. You may also get this error if you didn't specify the appropriate location for one of GD's dependencies (freetype, libpng, libjpeg or libiconv).])
+-  fi
+-fi
+-
+-dnl ----------------------------------------------------------------------
+-dnl Continue with GD processing - determine GD formats and other features
+-dnl ----------------------------------------------------------------------
+-
+-if test -n "$with_gd" -a "$with_gd" != "yes" ; then
+-
+-  dnl check gd lib that was found on --with-gd=
+-  
+-  if test "$GD_STATIC" = "yes" ; then
+-    dnl To test against static GD, do AC_CHECK_LIB calls against -lc and
+-    dnl include libgd.a in GD_LIB param
+-    GD_CHECKLIB=c
+-    GD_LIB=$GD_LIBDIR/libgd.a
+-    GD_STATIC=$GD_LIBDIR/libgd.a
+-    AC_MSG_RESULT([static linkage of $GD_STATIC requested... testing supported formats...])
+-  else
+-    GD_CHECKLIB=c
+-    # GD_LIB was already set above
+-    GD_STATIC=""
+-  fi
+-  
+-  AC_CHECK_LIB($GD_CHECKLIB, gdImageGif, GD_DEF="$GD_DEF -DUSE_GD_GIF",, $GD_STATIC $GD_LIB $GD_XTRA_LIBS)
+-  AC_CHECK_LIB($GD_CHECKLIB, gdImagePng, GD_DEF="$GD_DEF -DUSE_GD_PNG",, $GD_STATIC $GD_LIB $GD_XTRA_LIBS)
+-  AC_CHECK_LIB($GD_CHECKLIB, gdImageJpeg, GD_DEF="$GD_DEF -DUSE_GD_JPEG",, $GD_STATIC $GD_LIB $GD_XTRA_LIBS)
+-  AC_CHECK_LIB($GD_CHECKLIB, gdImageWBMP, GD_DEF="$GD_DEF -DUSE_GD_WBMP",, $GD_STATIC $GD_LIB $GD_XTRA_LIBS)
+-
+-  dnl check for Freetype 2.x support
+-  GD_FT_SUPPORT=no  
+-  AC_CHECK_LIB($GD_CHECKLIB, gdImageStringFT, GD_FT_SUPPORT=yes,, $GD_STATIC $GD_LIB $GD_XTRA_LIBS)
+-
+-  dnl If GD static is requested, it may needs libfontconfig.
+-  if test -n "$GD_STATIC" ; then
+-     GD_LIB="$GD_LIB -lfontconfig"
+-     unset ac_cv_lib_c___gdImageStringFT
+-     AC_CHECK_LIB($GD_CHECKLIB, gdImageStringFT, GD_FT_SUPPORT=yes,, $GD_STATIC $GD_LIB $GD_XTRA_LIBS)
+-  fi
+-
+-  if test "$GD_FT_SUPPORT" = "yes"; then
+-     GD_DEF="$GD_DEF -DUSE_GD_FT"
+-  fi
+-
+-  dnl check for Resolution support
+-  GD_RESOLUTION_SUPPORT=no  
+-  AC_CHECK_LIB($GD_CHECKLIB, gdImageSetResolution, GD_RESOLUTION_SUPPORT=yes,, $GD_STATIC $GD_LIB $GD_XTRA_LIBS)
+-
+-  if test "$GD_RESOLUTION_SUPPORT" = "yes"; then
+-     GD_DEF="$GD_DEF -DUSE_GD_RESOLUTION"
+-  fi
+-
+-  dnl check for gdImageOpenPolygon (means GD version 2.0.29 or higher)
+-  AC_CHECK_LIB($GD_CHECKLIB, gdImageOpenPolygon, GD_DEF="$GD_DEF -DGD_HAS_FTEX_XSHOW",, $GD_STATIC $GD_LIB $GD_XTRA_LIBS)
+-
+-  dnl gdImageGifPtr is there only in GIF-patched GD versions
+-  AC_CHECK_LIB($GD_CHECKLIB, gdImageGifPtr, GD_DEF="$GD_DEF -DGD_HAS_GDIMAGEGIFPTR",, $GD_STATIC $GD_LIB $GD_XTRA_LIBS)
+-
+-  dnl GD 2.0.22 and more recent replaced the static font pointers with 
+-  dnl getter functions.
+-  AC_CHECK_LIB($GD_CHECKLIB, gdFontGetTiny, GD_DEF="$GD_DEF -DGD_HAS_GETBITMAPFONTS",, $GD_STATIC $GD_LIB $GD_XTRA_LIBS)
+-
+-  dnl check for gdImageGetTrueColorPixel.
+-  dnl In some GD versions this function is defined, but not declared in gd.h,
+-  dnl so check headers first
+-  GD_HAS_GET_TRUE_COLOR_PIXEL=
+-
+-  dnl AC_CHECK_DECL needs to know the gd include path
+-  CFLAGS_BACKUP="$CFLAGS"
+-  CXXFLAGS_BACKUP="$CXXFLAGS"
+-  CFLAGS="$CFLAGS $GD_INC"
+-  CXXFLAGS="$CXXFLAGS $GD_INC"
+-  AC_CHECK_DECL(gdImageGetTrueColorPixel,[GD_HAS_GET_TRUE_COLOR_PIXEL=yes],,[#include <gd.h>])
+-  CFLAGS="$CFLAGS_BACKUP"
+-  CXXFLAGS="$CXXFLAGS_BACKUP"
+-
+-  dnl if it's declared, check if we can link with it
+-  if test .$GD_HAS_GET_TRUE_COLOR_PIXEL = .yes ; then
+-    AC_CHECK_LIB($GD_CHECKLIB, gdImageGetTrueColorPixel, GD_DEF="$GD_DEF -DGD_HAS_GET_TRUE_COLOR_PIXEL",, $GD_STATIC $GD_LIB $GD_XTRA_LIBS)
+-  fi
+-
+-  AC_MSG_RESULT([        using GD ($GD_DEF) from $GD_DIR.])
+-
+-else
+-
+-  dnl
+-  dnl --with-gd was not given... then look in system libs
+-  dnl
+-
+-  dnl Make sure GD is at least there!
+-  AC_CHECK_LIB(gd, gdImageCreate, GD_FOUND=yes , ,$GD_XTRA_LIBS)
+-  if test -z "$GD_FOUND" ; then
+-      AC_MSG_ERROR([GD is required but was not found... use --with-gd=DIR to specify its location.])
+-  fi
+-
+-  dnl Check supported formats
+-  AC_CHECK_LIB(gd, gdImageGif, GD_DEF="$GD_DEF -DUSE_GD_GIF",, $GD_LIB $GD_XTRA_LIBS)
+-  AC_CHECK_LIB(gd, gdImagePng, GD_DEF="$GD_DEF -DUSE_GD_PNG",, $GD_LIB $GD_XTRA_LIBS)
+-  AC_CHECK_LIB(gd, gdImageJpeg, GD_DEF="$GD_DEF -DUSE_GD_JPEG",, $GD_LIB $GD_XTRA_LIBS)
+-  AC_CHECK_LIB(gd, gdImageWBMP, GD_DEF="$GD_DEF -DUSE_GD_WBMP",, $GD_LIB $GD_XTRA_LIBS)
+-
+-  dnl Check for Freetype 2 support
+-  AC_CHECK_LIB(gd, gdImageStringFT, GD_DEF="$GD_DEF -DUSE_GD_FT",, $GD_LIB $GD_XTRA_LIBS)
+-
+-  dnl check for gdImageOpenPolygon (means GD version 2.0.29 or higher)
+-  AC_CHECK_LIB(gd, gdImageOpenPolygon, GD_DEF="$GD_DEF -DGD_HAS_FTEX_XSHOW",, $GD_STATIC $GD_LIB $GD_XTRA_LIBS)
+-
+-  dnl gdImageGifPtr is there only in GIF-patched GD versions
+-  AC_CHECK_LIB(gd, gdImageGifPtr, GD_DEF="$GD_DEF -DGD_HAS_GDIMAGEGIFPTR",, $GD_LIB $GD_XTRA_LIBS)
+-
+-  dnl GD 2.0.22 and more recent replaced the static font pointers with 
+-  dnl getter functions.
+-  AC_CHECK_LIB(gd, gdFontGetTiny, GD_DEF="$GD_DEF -DGD_HAS_GETBITMAPFONTS",, $GD_LIB $GD_XTRA_LIBS)
++AC_DEFUN([MS_CHECK_GD],[
++   AC_ARG_WITH(gd,
++      AC_HELP_STRING([--with-gd], [libgd location: [yes|no|/path/to/gdlib-config]]),
++      [],
++      [with_gd=no])
++
++   if test x"$with_gd" == "xno"; then
++      AC_SUBST(GD_ENABLED, "")
++      AC_SUBST(GD_INC, "")
++      AC_SUBST(GD_LIB, "")
++      AC_MSG_RESULT([GD support not requested, disabling])
++   else
++      if test "$with_gd" == "yes"; then
++         AC_PATH_PROG(GDCONFIG,gdlib-config,no)
++         if test "$GDCONFIG" == "no"; then
++            AC_MSG_ERROR([gdlib-config not found in path, reconfigure with --with-gd=/path/to/gdlib-config])
++         fi
++      else
++         if test ! -f "$with_gd"; then
++            if test ! -d "$with_gd"; then
++               AC_MSG_ERROR([cannot find $with_gd])
++            fi
++            if test ! -f "$with_gd/bin/gdlib-config"; then
++               AC_MSG_ERROR([gdlib-config not found in $with_gd (tried $with_gd/bin/gdlib-config)])
++            else
++               GDCONFIG="$with_gd/bin/gdlib-config"
++            fi
++         else
++            GDCONFIG="$with_gd"
++         fi
++         AC_PATH_PROG(GDCONFIG,$GDCONFIG,no)
++         if test "$GDCONFIG" == "no"; then
++            AC_MSG_ERROR([gdlib-config not usable, reconfigure with --with-gd[=(yes|no|/path/to/gdlib-config)]])
++         fi
++      fi
+ 
+-  dnl check for Resolution support
+-  GD_RESOLUTION_SUPPORT=no  
+-  AC_CHECK_LIB($GD_CHECKLIB, gdImageSetResolution, GD_RESOLUTION_SUPPORT=yes,, $GD_STATIC $GD_LIB $GD_XTRA_LIBS)
++      GDMAJOR=`$GDCONFIG --majorversion`
++      GDMINOR=`$GDCONFIG --minorversion`
++      GDREV=`$GDCONFIG --revision`
++      GDVERSION=`$GDCONFIG --version`
++      GDFEATURES=`$GDCONFIG --features`
++      AC_MSG_RESULT([using libgd $GDVERSION from $GDCONFIG])
++      
++      if test -z "`echo $GDFEATURES | grep 'GD_PNG'`" ; then
++         AC_MSG_ERROR([supplied GD is missing PNG support])
++      else
++         GD_ENABLED="$GD_ENABLED -DUSE_GD_PNG"
++      fi
++      if test -z "`echo $GDFEATURES | grep 'GD_JPEG'`" ; then
++         AC_MSG_ERROR([supplied GD is missing JPEG support])
++      else
++         GD_ENABLED="$GD_ENABLED -DUSE_GD_JPEG"
++      fi
++      if test -z "`echo $GDFEATURES | grep 'GD_GIF'`" ; then
++         AC_MSG_ERROR([supplied GD is missing GIF support])
++      else
++         GD_ENABLED="$GD_ENABLED -DUSE_GD_GIF"
++      fi
++      if test -z "`echo $GDFEATURES | grep 'GD_FREETYPE'`" ; then
++         AC_MSG_ERROR([supplied GD is missing FT support])
++      fi
+ 
+-  if test "$GD_RESOLUTION_SUPPORT" = "yes"; then
+-     GD_DEF="$GD_DEF -DUSE_GD_RESOLUTION"
+-  fi
+ 
+-  dnl check for gdImageGetTrueColorPixel.
+-  dnl In some GD versions this function is defined, but not declared in gd.h,
+-  dnl so check headers first
+-  GD_HAS_GET_TRUE_COLOR_PIXEL=
+-  AC_CHECK_DECL(gdImageGetTrueColorPixel,[GD_HAS_GET_TRUE_COLOR_PIXEL=yes],,[#include <gd.h>])
+-  dnl if it's declared, check if we can link with it
+-  if test .$GD_HAS_GET_TRUE_COLOR_PIXEL = .yes ; then
+-    AC_CHECK_LIB(gd, gdImageGetTrueColorPixel, GD_DEF="$GD_DEF -DGD_HAS_GET_TRUE_COLOR_PIXEL",, $GD_STATIC $GD_LIB $GD_XTRA_LIBS)
+-  fi
+ 
+-  if test -n "$GD_DEF" ; then
+-      GD_LIB="-lgd $GD_LIB"
+-      AC_MSG_RESULT([        using GD ($GD_DEF) from system libs.])
+-  fi
+-fi
++      if test $GDMAJOR -lt 2 -o $GDMINOR -lt 0 -o $GDREV -lt 28 ; then
++         AC_MSG_ERROR([GD version $GDVERSION too old. need at least 2.0.28])
++      fi
+ 
+-GD_LIB="$GD_LIB $GD_XTRA_LIBS"
+ 
+-AC_SUBST(GD_DEF, $GD_DEF)
+-AC_SUBST(GD_INC, $GD_INC)
+-AC_SUBST(GD_LIB, $GD_LIB)
+-AC_SUBST(GD_STATIC, $GD_STATIC)
+-AC_SUBST(MAKE_GD, $MAKE_GD)
+-AC_SUBST(MAKE_GD_CLEAN, $MAKE_GD_CLEAN)
++      dnl gdlib-config adds /usr/include and /usr/lib to the compile paths
++      dnl which we do not want, as they may take precedence on locally
++      dnl supplied paths for other libraries
+ 
+-ALL_ENABLED="$GD_DEF $ALL_ENABLED"
+-ALL_INC="$GD_INC $ALL_INC"
+-ALL_LIB="$GD_LIB $ALL_LIB"
+-ALL_STATIC_LIB="$GD_STATIC $ALL_STATIC_LIB"
++      dnl remove /usr/include/ from default include path
++      GD_INC=`$GDCONFIG --includedir`
++      if test "x$GD_INC" != "x/usr/include" -a "x$GD_INC" != "x/usr/include/" -a -n "$GD_INC"; then
++         GD_INC="-I$GD_INC"
++      else
++         GD_INC=""
++      fi
++      
++      dnl remove /usr/lib/ from default lib path
++      GD_LIB=`$GDCONFIG --libdir`
++      if test "x$GD_LIB" != "x/usr/lib" -a "x$GD_LIB" != "x/usr/lib/" -a -n "$GD_LIB"; then
++         GD_LIB="-L$GD_LIB"
++      else
++         GD_LIB=""
++      fi
++      
++      GD_ENABLED="-DUSE_GD $GD_ENABLED"
++      ALL_ENABLED="$GD_ENABLED $ALL_ENABLED"
++      AC_SUBST(GD_ENABLED, "$GD_ENABLED")
++      ALL_INC="$ALL_INC $GD_INC"
++      ALL_LIB="$ALL_LIB $GD_LIB -lgd"
++      AC_SUBST(GD_INC, "$GD_INC")
++      AC_SUBST(GD_LIB, "$GD_LIB -lgd")
++   fi
+ 
+-dnl Restore LIBS environment to state at beginning of gd tests.
+-LIBS="$ms_saved_LIBS"
++])
+ 
++MS_CHECK_GD
+ 
+ dnl ---------------------------------------------------------------------
+ dnl FTGL Support.
+@@ -1342,7 +1204,12 @@ if test -n "$with_geos" -a "$with_geos" != "no" ; then
+ 
+   GEOS_INCDIR=`$GEOS_CONFIG --includes`
+   GEOS_INC="-I$GEOS_INCDIR"
+-  GEOS_LIB="`$GEOS_CONFIG --libs`_c"
++
++  if test $geos_minor_version -ge 3; then
++    GEOS_LIB=`$GEOS_CONFIG --clibs`
++  else
++    GEOS_LIB="`$GEOS_CONFIG --libs`_c"
++  fi
+ 
+   AC_SUBST(GEOS_ENABLED,$GEOS_ENABLED)
+   AC_SUBST(GEOS_INC,    $GEOS_INC)
