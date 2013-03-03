@@ -31,8 +31,6 @@ node['postgresql']['pg_hba'].push(
                                   :addr => nil, 
                                   :method => 'ident'} )
 
-include_recipe 'postgresql::server'
-
 packages = %w{git emacs vim gdal-bin bison imagemagick postgresql-9.1-postgis python-sphinx libsvg libsvg-cairo}
 directories = [source_dir, script_dir, msdoc_dir, msautotest_dir, 
                mapserver_install_dir, patch_dir]
@@ -48,6 +46,8 @@ end
 
 execute "apt-get update"
 
+include_recipe 'postgresql::server'
+
 packages.each do |p|
   package p
 end
@@ -58,7 +58,7 @@ include_recipe 'apache2::mod_fastcgi'
 # create templates
 create_template_utf8_command = begin
       "sudo -u postgres createdb -E UTF8 -O postgres " +
-      "--lc_ctype en_US.UTF-8 -T template0 template_utf8;"
+      "--locale en_US.UTF-8 -T template0 template_utf8;"
     end
 
 configure_template_utf8_command =  begin
