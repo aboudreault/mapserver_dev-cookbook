@@ -8,8 +8,8 @@ After the provisioning, you'll get:
 
 * All MapServer dependencies and build tools installed.
 * MapServer (Branch master, 6.4, 6.2, 6.0) source downloaded and installed.
-* MapServer CGI/FCGI setup for all executables:
-   * http://localhost:8002/cgi-bin/mapserv (add .fcgi for fastCGI)
+* MapServer CGI/FCGI setup for all executables (add .fcgi for fastCGI):
+   * http://localhost:8002/cgi-bin/mapserv
    * http://localhost:8002/cgi-bin/mapserv-branch-6-0
    * http://localhost:8002/cgi-bin/mapserv-branch-6-2
    * http://localhost:8002/cgi-bin/mapserv-branch-6-4
@@ -33,6 +33,7 @@ Install the following vagrant plugins:
 Checkout the environment:
 
 $ git checkout https://github.com/aboudreault/mapserver_dev-cookbook.git
+
 $ cd mapserver_dev-cookbook
 
 # Usage
@@ -51,9 +52,9 @@ This might take some time.
 
 ## Commands
 
-Stop the vm: vagrant halt
-Start the vm: vagrant up (provisioning is only done the first time)
-Reprovision the vm: vagrant provision or vagrant up --provision
+* Stop the vm: vagrant halt
+* Start the vm: vagrant up (provisioning is only done the first time)
+* Reprovision the vm: vagrant provision or vagrant up --provision
 
 # Author
 
