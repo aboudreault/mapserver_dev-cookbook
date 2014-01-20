@@ -2,26 +2,28 @@
 
 require 'berkshelf/vagrant'
 
-Vagrant::Config.run do |config|
+Vagrant.configure("2") do |config|
 
-  config.vm.host_name = "mapserver-dev"
+  config.berkshelf.enabled = true
 
-  config.vm.box = "precise32"
-  config.vm.box_url = "http://files.vagrantup.com/precise32.box"
+  config.vm.hostname = "mapserver-dev"
 
-  config.vm.network :hostonly, "192.168.33.2"
+  config.vm.box = "precise64"
+  config.vm.box_url = "http://files.vagrantup.com/precise64.box"
 
-  config.vm.forward_port  80, 8002
-  config.vm.forward_port  22, 2202
-  
-  config.vm.share_folder "v-data", "/vagrant_data", "~"
+  config.vm.network "private_network", ip: "192.168.33.2"
 
-  config.ssh.max_tries = 40
-  config.ssh.timeout   = 120
+  config.vm.network "forwarded_port", guest: 80, host: 8002
+  config.vm.network "forwarded_port",  guest: 22, host: 2202
 
-  config.vm.customize ["modifyvm", :id, "--cpus", 2]
-  config.vm.customize ["modifyvm", :id, "--memory", 1024]
-  
+  config.vm.synced_folder "~", "/vagrant_data"
+
+  config.vm.provider "virtualbox" do |v|
+    v.name = "mapserver-dev"
+    v.customize ["modifyvm", :id, "--cpus", 2]
+    v.memory = 1500
+  end
+
   config.vm.provision :chef_solo do |chef|
     chef.run_list = [
       "recipe[mapserver-dev::default]"

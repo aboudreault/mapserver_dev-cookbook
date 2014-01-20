@@ -19,6 +19,18 @@ msautotest_dir = File.join(source_dir, 'msautotest')
 mapserver_install_dir = File.join(install_dir, 'mapserver')
 patch_dir = File.join(source_dir, 'patches')
 
+# add the UbuntuGIS Unstable PPA; grab key from keyserver
+apt_repository "ubuntugis-unstable" do
+  uri "http://ppa.launchpad.net/ubuntugis/ubuntugis-unstable/ubuntu"
+  distribution node['lsb']['codename']
+  components ["main"]
+  deb_src true
+  keyserver "keyserver.ubuntu.com"
+  key "314DF160"
+end
+
+execute "apt-get update"
+
 #locale
 include_recipe 'locale'
 
@@ -31,20 +43,9 @@ node['postgresql']['pg_hba'].push(
                                   :addr => nil, 
                                   :method => 'ident'} )
 
-packages = %w{git emacs vim gdal-bin bison imagemagick postgresql-9.1-postgis python-sphinx libsvg libsvg-cairo}
+packages = %w{cmake git emacs vim gdal-bin bison imagemagick postgresql-9.1-postgis-2.0 postgresql-9.1-postgis-2.0-scripts python-sphinx librsvg2-dev libsvg-cairo libexempi-dev}
 directories = [source_dir, script_dir, msdoc_dir, msautotest_dir, 
                mapserver_install_dir, patch_dir]
-
-# add the UbuntuGIS Unstable PPA; grab key from keyserver
-apt_repository "ubuntugis-unstable" do
-  uri "http://ppa.launchpad.net/ubuntugis/ubuntugis-unstable/ubuntu"
-  distribution node['lsb']['codename']
-  components ["main"]
-  keyserver "keyserver.ubuntu.com"
-  key "314DF160"
-end
-
-execute "apt-get update"
 
 include_recipe 'postgresql::server'
 
@@ -126,6 +127,23 @@ directories.each do |dir|
   end
 end
 
+## install harfbuzz
+template "#{script_dir}/install_harfbuzz.sh" do
+  source "install_harfbuzz.sh.erb"
+  mode 00744
+  owner user
+  group user
+  action :create_if_missing
+end
+
+bash "install_harfbuzz" do
+  user 'root'
+  cwd '/tmp'
+  code <<-EOH
+  #{script_dir}/install_harfbuzz.sh
+  EOH
+end
+
 ############ Mapserver
 
 execute "apt-get build-dep -y cgi-mapserver"
@@ -175,9 +193,6 @@ node['mapserver-dev']['versions'].each do |version|
       only_if { ::File.exists?("#{patch_dir}/#{version}.patch") }
     end
 
-    # in case of re-provisionning
-    execute "rm -f #{version_dir}/chef"
-    
   end
 end
 
@@ -192,13 +207,20 @@ template "#{script_dir}/mapserver-build.sh" do
   })
 end
 
-bash "install_mapserver" do
+bash "build_mapserver" do
   user user
   cwd mapserver_dir
   code <<-EOH
-  #{script_dir}/mapserver-build.sh && touch chef
+  #{script_dir}/mapserver-build.sh --compile
   EOH
-  not_if { ::File.exists?("#{mapserver_dir}/chef") }
+end
+
+bash "install_mapserver" do
+  user 'root'
+  cwd mapserver_dir
+  code <<-EOH
+  #{script_dir}/mapserver-build.sh --install
+  EOH
 end
 
 bash "bash_mapserver_path" do 
@@ -231,13 +253,20 @@ node['mapserver-dev']['versions'].each do |version|
     recursive true
   end
 
-  bash "install_mapserver_#{version}" do
+  bash "build_mapserver_#{version}" do
     user user
     cwd version_dir
     code <<-EOH
-  #{script_dir}/mapserver-build.sh
+  #{script_dir}/mapserver-build.sh --compile
   EOH
-    not_if { ::File.exists?("#{version_dir}/chef") }
+  end
+
+  bash "install_mapserver_#{version}" do
+    user 'root'
+    cwd version_dir
+    code <<-EOH
+  #{script_dir}/mapserver-build.sh --install
+  EOH
   end
 
   execute "mapserver_cgi_#{version}" do 
@@ -315,7 +344,7 @@ end
 
 template "/etc/apache2/sites-available/mapserver" do
   source "mapserver-virtualhost.erb"
-  mode 00744
+  mode 00644
   action :create_if_missing
   variables({
     :msdoc_dir => msdoc_dir,

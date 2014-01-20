@@ -1,9 +1,38 @@
+#!/bin/bash
+# Compile or Install MapServer
+
 MAPSERVER=$(basename `pwd`)
 MS_VERSION_MAJOR=$(cat mapserver.h |grep "#define MS_VERSION_MAJOR"| awk '{ print $3 }')
 MS_VERSION_MINOR=$(cat mapserver.h |grep "#define MS_VERSION_MINOR"| awk '{ print $3 }')
 
-COMMON_CONFIG=$(cat<<EOF 
---prefix=<%= @install_dir %>/$MAPSERVER \
+function compile() {
+    if [ -f CMakeLists.txt ]; then
+	COMMON_CONFIG=$(cat<<EOF
+-DCMAKE_INSTALL_PREFIX=<%= @install_dir %>/$MAPSERVER
+-DWITH_CLIENT_WMS=yes
+-DWITH_CLIENT_WFS=1
+-DWITH_KML=1
+-DWITH_SOS=1
+-DWITH_PHP=1
+-DWITH_PYTHON=1
+-DWITH_THREAD_SAFETY=1
+-DWITH_HARFBUZZ=1
+-DWITH_FRIBIDI=1
+-DWITH_FCGI=1
+-DWITH_EXEMPI=1
+-DCMAKE_BUILD_TYPE=Release
+-DWITH_RSVG=1
+-DWITH_CURL=1
+EOF
+	)
+
+	mkdir build
+	cd build
+	cmake $COMMON_CONFIG ..
+	make -j2
+    else
+	COMMON_CONFIG=$(cat<<EOF
+--prefix=<%= @install_dir %>/$MAPSERVER
 --with-gd
 --with-gdal
 --with-postgis
@@ -19,37 +48,58 @@ COMMON_CONFIG=$(cat<<EOF
 --with-sos
 --with-fastcgi
 EOF
-)
+	)
 
-if [ $MS_VERSION_MAJOR -ge 6 -a $MS_VERSION_MINOR -ge 2 ]; then
-   COMMON_CONFIG="$COMMON_CONFIG --with-cairo --with-libsvg-cairo"
+	if [ $MS_VERSION_MAJOR -ge 6 -a $MS_VERSION_MINOR -ge 2 ]; then
+	    COMMON_CONFIG="$COMMON_CONFIG --with-cairo --with-libsvg-cairo"
+	fi
+	if [ $MS_VERSION_MAJOR -ge 6 -a $MS_VERSION_MINOR -gt 2 ]; then
+	    COMMON_CONFIG="$COMMON_CONFIG --with-php --enable-python-mapscript"
+	fi
+
+	./configure $COMMON_CONFIG && make clean && make -j2
+
+    fi
+}
+
+function install() {
+
+    if [ -f CMakeLists.txt ]; then
+	cd build
+	make install
+    else
+	if [ $MS_VERSION_MAJOR -ge 6 -a $MS_VERSION_MINOR -ge 2 ]; then
+	    make install-lib install-bin install-cgibin
+	fi
+
+	if [ $MS_VERSION_MAJOR -ge 6 -a $MS_VERSION_MINOR -gt 2 ]; then
+	    make php_mapscript_install python_mapscript_install
+	fi
+
+	if [ $MS_VERSION_MAJOR = "6" -a $MS_VERSION_MINOR = "0" ]; then
+	    if [ ! -d <%= @install_dir %>/$MAPSERVER/bin ]; then
+		mkdir <%= @install_dir %>/$MAPSERVER/bin
+	    fi
+	    cp mapserv legend msencrypt scalebar shp2img shptree shptreetst shptreevis sortshp tile4ms <%= @install_dir %>/$MAPSERVER/bin
+	fi
+    fi
+}
+
+if [ $# -gt 0 ]; then
+    case "$1" in
+        --compile)
+            compile
+            ;;
+        --install)
+            install
+            ;;
+        *)
+            echo "Error: provide --compile or --install as argument."
+            exit 1
+            ;;
+    esac
+else
+    echo "Error: provide --compile or --install as argument."
 fi
-
-if [ $MS_VERSION_MAJOR -ge 6 -a $MS_VERSION_MINOR -gt 2 ]; then
-   COMMON_CONFIG="$COMMON_CONFIG --with-php --enable-python-mapscript"
-fi
-
-./configure $COMMON_CONFIG && make clean && make
-
-if [ $MS_VERSION_MAJOR -ge 6 -a $MS_VERSION_MINOR -ge 2 ]; then
-  make install-lib install-bin install-cgibin
-fi
-
-if [ $MS_VERSION_MAJOR -ge 6 -a $MS_VERSION_MINOR -gt 2 ]; then
-  sudo make php_mapscript_install python_mapscript_install
-fi
-
-
-if [ $MS_VERSION_MAJOR = "6" -a $MS_VERSION_MINOR = "0" ]; then
-
- if [ ! -d <%= @install_dir %>/$MAPSERVER/bin ]; then
-    mkdir <%= @install_dir %>/$MAPSERVER/bin
- fi
-
- cp mapserv legend msencrypt scalebar shp2img shptree shptreetst shptreevis sortshp tile4ms <%= @install_dir %>/$MAPSERVER/bin
- 
-fi
-
-touch chef
 
 exit 0
