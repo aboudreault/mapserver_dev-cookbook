@@ -1,7 +1,8 @@
 # mapserver-dev cookbook
 
 This cookbook provides a complete MapServer development environment. It has been
-updated on 2014-0-120 to work with latest virtualbox (4.3) and vagrant (1.4.3).
+updated on 2014-0-120 to work with latest mapserver, virtualbox (4.3) and
+vagrant (1.4.3).
 
 After the provisioning, you'll get:
 
