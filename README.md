@@ -6,6 +6,7 @@ vagrant (1.4.3).
 
 After the provisioning, you'll get:
 
+* A Ubuntu Precise 64bits machine.
 * All MapServer dependencies and build tools installed.
 * MapServer (Branch master, 6.4, 6.2, 6.0) source downloaded and installed.
 * MapServer CGI/FCGI setup for all executables (add .fcgi for fastCGI):
