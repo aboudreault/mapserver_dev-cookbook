@@ -1,6 +1,6 @@
 name             "mapserver-dev"
 maintainer       "Alan Boudreault"
-maintainer_email "aboudreault@mapgears.com"
+maintainer_email "boudreault.alan@gmail.com"
 license          "Apache 2.0"
 description      "Setup a mapserver development environment"
 long_description IO.read(File.join(File.dirname(__FILE__), 'README.md'))
